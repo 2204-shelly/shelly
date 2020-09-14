@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+
+<title>Shelly</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&display=swap">
+
+<style>
+* {
+	box-sizing: border-box;
+}
+html {
+	font-family: "IBM Plex Mono", monospace;
+}
+body {
+	margin: 0;
+}
+
+input[type=text], textarea {
+	padding: 0.2rem 0.4rem;
+	margin: 0;
+	border: 0;
+	background: none;
+
+	font-family: inherit;
+	font-size: inherit;
+
+	width: 100%;
+}
+
+#output {
+	padding: 0.2rem 0.4rem;
+
+	font-family: "IBM Plex Mono", monospace;
+}
+</style>
+
+<main>
+	<pre id="output"></pre>
+	<form id="command" method="POST" action="/api/v1/super/secure/sandbox">
+		<input type="text" name="cmd" placeholder="command">
+		<textarea name="stdin" placeholder="stdin" rows="8"></textarea>
+	</form>
+</main>
+
+<script>
+const output = document.querySelector("#output");
+const command = document.querySelector("#command");
+
+command.addEventListener("submit", e => {
+	e.preventDefault();
+
+	// Read form properties
+	const formAction = command.action;
+	const formMethod = command.method;
+	const formData = new FormData(command);
+
+	// Perform request
+	fetch(formAction, {
+		url: formAction,
+		method: formMethod,
+		body: formData,
+	}).then(resp => {
+		// Parse data
+		if (resp.status === 200) {
+			return resp.json();
+		}
+		return resp.text().then(resp => {
+			throw new Error(resp);
+		});
+	}).then(resp => {
+		// Output response
+		output.textContent += "\ncommand: [" + resp.Command.join(" ") + "]";
+		output.textContent += "\nstdout:\n" + atob(resp.Stdout);
+		if (resp.Stderr.length > 0) {
+			output.textContent += "\nstderr:\n" + atob(resp.Stderr);
+		}
+	}).catch(err => {
+		output.textContent += "\n" + err.message;
+	});
+});
+</script>
