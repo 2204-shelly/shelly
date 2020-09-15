@@ -16,8 +16,8 @@ import (
 
 type CommandResponse struct {
 	Command []string
-	Stdout []byte
-	Stderr []byte
+	Stdout  []byte
+	Stderr  []byte
 }
 
 func main() {
@@ -50,19 +50,39 @@ func main() {
 		cmd.Stdin = strings.NewReader(stdin)
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
-		err = cmd.Run()
+
+		err = cmd.Start()
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(err.Error()))
 			return
 		}
 
+		cmdDone := make(chan error, 1)
+		go func() {
+			cmdDone <- cmd.Wait()
+		}()
+
+		select {
+		case <-time.After(50 * time.Second):
+			cmd.Process.Kill()
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("command execution timed out after 50 seconds"))
+			return
+		case err := <-cmdDone:
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(err.Error()))
+				return
+			}
+		}
+
 		// Write data as JSON
 		w.WriteHeader(http.StatusOK)
 		b, err := json.Marshal(CommandResponse{
 			Command: cmds,
-			Stdout: stdout.Bytes(),
-			Stderr: stderr.Bytes(),
+			Stdout:  stdout.Bytes(),
+			Stderr:  stderr.Bytes(),
 		})
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -80,7 +100,7 @@ func main() {
 	s := &http.Server{
 		Addr:           ":8080",
 		ReadTimeout:    10 * time.Second,
-		WriteTimeout:   10 * time.Second,
+		WriteTimeout:   60 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
 	log.Fatal(s.ListenAndServe())
