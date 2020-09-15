@@ -11,6 +11,7 @@ RUN go build -o /dist/shelly
 
 # We're nice people, we give Ubuntu 20.04
 FROM ubuntu:20.04
+ARG DEBIAN_FRONTEND=noninteractive
 
 # We're even nicer people, we give some tools
 RUN apt-get update \
