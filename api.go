@@ -4,11 +4,11 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"log"
 	"net/http"
 	"os/exec"
-	"strings"
 	"time"
 
 	"github.com/mattn/go-shellwords"
@@ -30,7 +30,15 @@ func main() {
 
 		// Read POST form data
 		cmdline := r.PostFormValue("cmd")
-		stdin := r.PostFormValue("stdin")
+		stdindata := r.PostFormValue("stdin")
+
+		// Make it easier to use <textarea>
+		stdin, err := base64.StdEncoding.DecodeString(stdindata)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(err.Error()))
+			return
+		}
 
 		// Split the command nicely, we're nice people
 		//cmds := strings.Split(cmdline, "\x00")
@@ -47,7 +55,7 @@ func main() {
 
 		// Run the command
 		cmd := exec.Command(cmds[0], cmds[1:]...)
-		cmd.Stdin = strings.NewReader(stdin)
+		cmd.Stdin = bytes.NewReader(stdin)
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
 

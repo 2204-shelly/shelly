@@ -54,6 +54,9 @@ command.addEventListener("submit", e => {
 	const formMethod = command.method;
 	const formData = new FormData(command);
 
+	// Encode stdin as base64 
+	formData.set("stdin", btoa(formData.get("stdin").replace("\r\n", "\n")));
+
 	// Perform request
 	fetch(formAction, {
 		url: formAction,
